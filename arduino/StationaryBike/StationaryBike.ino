@@ -13,7 +13,7 @@
 
 //Behaviour settings
 #define NoiseFilter 5      //min # of consecutive high or low ticks required to signify a high or a low.
-#define StatsInterval 1000 //ms - time between sending stats to computer
+#define StatsInterval 300 //ms - time between sending stats to computer
 #define PauseDelay 3000    //ms - time without revolutions before pausing the bike (allows for speeds down to 5km/hr)
 #define DistPerRev 4       //meters - distance per revolution
 #define SpeedBufferSize 3  //How many of the last speed measurements should be used to calculate the current speed (mean)
