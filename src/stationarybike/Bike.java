@@ -1,29 +1,16 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package stationarybike;
 
-import gnu.io.CommPortIdentifier;
-import gnu.io.NoSuchPortException;
-import gnu.io.PortInUseException;
-import gnu.io.SerialPort;
-import gnu.io.UnsupportedCommOperationException;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+import gnu.io.*;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
  * @author Rasmus
  */
 public class Bike {
-    private class NoBikeException extends Exception { 
+    public static class NoBikeException extends Exception { 
         public NoBikeException() {}
         public NoBikeException(String msg) {super(msg);}
     }
@@ -31,34 +18,42 @@ public class Bike {
     private long duration; //seconds
     private OutputStream outStream;
     private BufferedReader inReader;
+    private SerialPort port;
     
+    private Bike() {
+        
+    }
     /**
      * Create a new Bike connected via serial to the Arduino by trying all possible ports
-     * Throws exception 
      */
-    public Bike() throws NoBikeException
+    public static Bike connect() throws NoBikeException
     {
         try {
-            SerialPort port = tryAllPorts();
-            setupAutoUpdater(port);
+            System.out.println("Starting port scan");
+            Bike b = new Bike();
+            b.port = b.tryAllPorts();
+            b.setupAutoUpdate();
+            return b;
         } catch (Exception ex) {
             throw new NoBikeException("Bike could not be found on any port");
         }
-        
     }
-    
-    public Bike(String portName) throws NoBikeException
+    /**
+     * Create a new Bike connected via serial to the Arduino on the specified port
+     */
+    public static Bike connect(String portName) throws NoBikeException
     {
         try {
-            SerialPort port = tryPort(portName);
-            setupAutoUpdater(port);
+            Bike b = new Bike();
+            b.port = b.tryPort(portName);
+            b.setupAutoUpdate();
+            return b;
         } catch (Exception ex) {
             throw new NoBikeException("Bike could not be found on the specified port");
         }
-        
     }
     
-    private void setupAutoUpdater(final SerialPort port)
+    private void setupAutoUpdate()
     {
         Runnable r = new Runnable() {
             @Override
@@ -69,7 +64,6 @@ public class Bike {
                         String response = inReader.readLine();
                         if (response.startsWith("CSV;"))
                             updateFromCSV(response);
-                        break;
                     }
                     catch (IOException ex)
                     {
@@ -122,7 +116,7 @@ public class Bike {
                 continue; //Nothing to read at this time
             }
         }
-        
+        System.out.println("Got response: " + response);
         if ("StationaryBikeV1.0".equals(response))
         {
             outStream.write("W".getBytes()); //Verbose off
@@ -132,7 +126,7 @@ public class Bike {
             return port;
         }
         
-        return null;
+        throw new IOException("Unsuccessful connection");
     }
     
     private SerialPort tryAllPorts() throws NoSuchPortException, PortInUseException, UnsupportedCommOperationException, IOException
@@ -142,13 +136,15 @@ public class Bike {
             System.out.println("Trying portname " + portName);
             SerialPort port = tryPort(portName);
                 if (port != null) return port;
+            System.out.println("unsuccessful");
         }
         System.out.println("Tried all ports - no luck");
-        return null;
+        throw new IOException("Unsuccessful connection");
     }
     
     private void updateFromCSV(String data)
     {
+        
         if (!data.startsWith("CSV;")) throw new IllegalArgumentException("Unexpected data (Expects \"CSV;double;long;double\")");
         String[] parts = data.split(";");
         if (parts.length < 4) throw new IllegalArgumentException("Unexpected data (Expects \"CSV;double;long;double\")");
@@ -156,6 +152,26 @@ public class Bike {
         speed = Double.parseDouble(parts[1]);
         duration = Long.parseLong(parts[2]);
         distance = Double.parseDouble(parts[3]);
+    }
+    
+    public void disconnect()
+    {
+        port.close();
+    }
+    
+    /**
+     * Reset speed, duration and distance on the Arduino
+     * @return True if successful, false otherwise
+     */
+    public boolean reset()
+    {
+        try {
+            outStream.write("R".getBytes());
+            outStream.flush();
+        } catch (IOException ex) {
+            return false;
+        }
+        return true;
     }
     
     /**
