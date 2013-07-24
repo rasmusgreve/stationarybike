@@ -159,6 +159,22 @@ public class Bike {
         port.close();
     }
     
+    
+    /**
+     * Estimate calories burned
+     * Calculation based on post from (http://forums.roadbikereview.com/racing-training-nutrition-triathlons/calories-burned-per-mile-formula-question-28863.html)
+     * @param weight Riders weight in kg
+     * @return An estimate of burned calories
+     */
+    public double getCalorieEstimate(double weight)
+    {
+        double avgSpeed = getDistance() / (getDuration()*3600); //in km/hr
+        int MET = 2 + (int)(avgSpeed/3); //Approximation of MET table
+        double energyExpenditure = 0.0175 * MET * weight; //Calories per minute
+        return energyExpenditure * (getDuration() / 60);
+    }
+    
+    
     /**
      * Reset speed, duration and distance on the Arduino
      * @return True if successful, false otherwise
